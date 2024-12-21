@@ -3,6 +3,7 @@
 #include<stdio.h>
 #include<string.h>
 #include <cstdlib> 
+#include <time.h>
 
 extern "C" {
 #include"./SDL2-2.0.10/include/SDL.h"
@@ -14,26 +15,52 @@ extern "C" {
 #define SCREEN_HEIGHT			480
 #define SNAKE_SPAWN_X			300
 #define SNAKE_SPAWN_Y			400
-#define MOVEMENT_SPEED			0.05
-#define INITIAL_SNAKE_LENGTH 	100		//so 1 head image and n-1 body images
-#define MAX_SNAKE_LENGTH		100
+
+#define INITIAL_SNAKE_LENGTH 	5	//so 1 head image and n-1 body images
+#define MAX_SNAKE_LENGTH		1000
 #define SNAKE_BODY_GAP			4
 #define SELF_HIT_SENSITIVITY	10
-#define CHASE_DELAY				0.4
+
+#define SPEED_CONST				150
+#define SPEED_UP_MULTIPLIER		1.1
+#define SPEED_UP_INTERVAL		5
+
+#define SENSITIVITY				10
+#define UNIT					5
+
+#define RED_UPPER_LIMIT			5
+#define RED_BOTTOM_LIMIT		1
+
+
+//TODO
+//CHANGE ARRAY TO DYNAMIC
 
 typedef struct GameState {
 	SDL_Event event;
 	SDL_Surface* charset;
 	SDL_Surface* eti;
+	SDL_Surface* blue_dot;
 	int quit;
 	double worldTime;
 	bool keys[SDL_NUM_SCANCODES] = { false };
 	double delta;
 	double timeTracker;
+	double speedUpTimer;
+	double redBonusTimer;
+	double progressTimer;
 	double fpsTimer;
 	double fps;
+	double movement_speed;
+	double chase_delay;
 	int frames;
 	bool collision;
+	bool dotSpawned; 
+	double blue_dot_x;
+	double blue_dot_y;
+	bool dotReached;
+	bool showProgressBar;
+	double speed_const;
+	int red_interval;
 }state;
 
 typedef struct Snake {
@@ -44,6 +71,7 @@ typedef struct Snake {
 	bool movingLeft;
 	bool movingDown;
 	bool movingRight;
+	int currentSnakeLength;
 	SDL_Surface* headUp;
 	SDL_Surface* headLeft;
 	SDL_Surface* headDown;
@@ -207,6 +235,18 @@ int loadAllImages(SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* scree
 		SDL_Quit();
 		return 1;
 	};
+
+	state->blue_dot = SDL_LoadBMP("./blue_dot.bmp");
+	if (state->blue_dot == NULL) {
+		printf("SDL_LoadBMP(blue_dot.bmp) error: %s\n", SDL_GetError());
+		SDL_FreeSurface(state->charset);
+		SDL_FreeSurface(screen);
+		SDL_DestroyTexture(scrtex);
+		SDL_DestroyWindow(window);
+		SDL_DestroyRenderer(renderer);
+		SDL_Quit();
+		return 1;
+	};
 }
 
 int initializeSDL(GameState* state, Snake* snake, Colors* colors, SDL_Event* event, SDL_Surface** screen, SDL_Texture** scrtex, SDL_Window** window, SDL_Renderer** renderer) {
@@ -260,6 +300,38 @@ int initializeSDL(GameState* state, Snake* snake, Colors* colors, SDL_Event* eve
 	colors->grey = SDL_MapRGB((*screen)->format, 0x55, 0x55, 0x55);
 }
 
+void printProgressBar(SDL_Surface* screen, GameState* state, Colors* colors) {
+	if (state->progressTimer > 0 && state->progressTimer < 1) {
+		sprintf(colors->text, "[|||            ]");
+		DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
+	}
+	else if (state->progressTimer >= 1 && state->progressTimer < 2) {
+		sprintf(colors->text, "[||||||         ]");
+		DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
+	}
+	else if (state->progressTimer >= 2 && state->progressTimer < 3) {
+		sprintf(colors->text, "[|||||||||      ]");
+		DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
+	}
+	else if (state->progressTimer >= 3 && state->progressTimer < 4) {
+		sprintf(colors->text, "[||||||||||||   ]");
+		DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
+	}
+	else if (state->progressTimer >= 4 && state->progressTimer < 5) {
+		sprintf(colors->text, "[|||||||||||||||]");
+		DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
+	}
+	else if (state->progressTimer >= 5) {
+		state->progressTimer = 0; 
+		state->showProgressBar = false;
+	}
+	else if (state->progressTimer == 0) {
+		sprintf(colors->text, "");
+		DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
+	}
+
+}
+
 void printAllVisuals(SDL_Surface* screen, GameState* state, Colors* colors, Snake* snake) {
 	SDL_FillRect(screen, NULL, colors->black);
 
@@ -280,14 +352,18 @@ void printAllVisuals(SDL_Surface* screen, GameState* state, Colors* colors, Snak
 	sprintf(colors->text, "RUNNING TIME = %.1lf s  %.0lf frames / s", state->worldTime, state->fps);
 	DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 10, colors->text, state->charset);
 
-	sprintf(colors->text, "Esc - EXIT PROGRAM, n - NEW GAME");
-	DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 26, colors->text, state->charset);
+	//sprintf(colors->text, "Esc - EXIT PROGRAM, n - NEW GAME");
+	//DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 26, colors->text, state->charset);
 
 	//sprintf(colors->text, "W - CLIMB LADDER, A - GO LEFT, S - DESCEND LADDER,  D - GO RIGHT");
 	//DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, element->charset);
 
 	sprintf(colors->text, "IMPLEMENTED ELEMENTS: 1,2,3,4");
-	DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
+	DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 26, colors->text, state->charset);
+
+	if (state->showProgressBar == true) {
+		printProgressBar(screen, state, colors);
+	}
 
 	//sprintf(colors->text, "snakex %f, snakey %f", snake->snake_x[0], snake->snake_y[0]);
 	//DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, state->charset);
@@ -369,6 +445,14 @@ void keystrokeReact(GameState* state, Snake* snake) {
 				snake->snake_y[0] = SNAKE_SPAWN_Y;
 				oneDirection(snake, 1, 0, 0, 0);
 				snake->isAlive = 1;
+				state->dotSpawned = false;
+				snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
+				state->speed_const = SPEED_CONST;
+				state->speedUpTimer = 0;
+				state->redBonusTimer = 0;
+				state->progressTimer = 0;
+				state->showProgressBar = false;
+				state->red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
 				break;
 			}
 			break;
@@ -379,10 +463,10 @@ void keystrokeReact(GameState* state, Snake* snake) {
 	}
 }
 
-void wallInteraction(Snake* snake) {
+void wallInteraction(Snake* snake, GameState* state) {
 	//upper wall interaction
-	if (snake->movingUp && snake->snake_y[0] - MOVEMENT_SPEED <= 0) {
-		if (snake->snake_x[0] + MOVEMENT_SPEED < SCREEN_WIDTH) {
+	if (snake->movingUp && snake->snake_y[0] - state->movement_speed <= 65) {
+		if (snake->snake_x[0] + state->movement_speed < SCREEN_WIDTH) {
 			oneDirection(snake, 0, 0, 0, 1); // right
 		}
 		else {
@@ -391,8 +475,8 @@ void wallInteraction(Snake* snake) {
 	}
 
 	//lefthand wall interaction
-	if (snake->movingLeft && snake->snake_x[0] - MOVEMENT_SPEED <= 0) {
-		if (snake->snake_y[0] - MOVEMENT_SPEED > 0) {
+	if (snake->movingLeft && snake->snake_x[0] - state->movement_speed <= 0) {
+		if (snake->snake_y[0] - state->movement_speed > 0) {
 			oneDirection(snake, 1, 0, 0, 0); // up
 		}
 		else {
@@ -402,8 +486,8 @@ void wallInteraction(Snake* snake) {
 
 
 	//bottom wall interaction
-	if (snake->movingDown && snake->snake_y[0] + MOVEMENT_SPEED >= SCREEN_HEIGHT) {
-		if (snake->snake_x[0] - MOVEMENT_SPEED > 0) {
+	if (snake->movingDown && snake->snake_y[0] + state->movement_speed >= SCREEN_HEIGHT) {
+		if (snake->snake_x[0] - state->movement_speed > 0) {
 			oneDirection(snake, 0, 1, 0, 0); // left
 			
 		}
@@ -414,8 +498,8 @@ void wallInteraction(Snake* snake) {
 
 
 	//righthand wall interaction 
-	if (snake->movingRight && snake->snake_x[0] + MOVEMENT_SPEED >= SCREEN_WIDTH) {
-		if (snake->snake_y[0] + MOVEMENT_SPEED < SCREEN_HEIGHT) {
+	if (snake->movingRight && snake->snake_x[0] + state->movement_speed >= SCREEN_WIDTH) {
+		if (snake->snake_y[0] + state->movement_speed < SCREEN_HEIGHT) {
 			oneDirection(snake, 0, 0, 1, 0); // down
 		}
 		else {
@@ -428,54 +512,54 @@ void wallInteraction(Snake* snake) {
 void snakeMovement(GameState* state, Snake* snake) {
 	// W
 	if (state->keys[SDL_SCANCODE_W] && !snake->movingDown) {
-		if (snake->snake_y[0] - MOVEMENT_SPEED > 0) {
+		if (snake->snake_y[0] - state->movement_speed > 0) {
 			oneDirection(snake, 1, 0, 0, 0); // up
 		}
 	}
 
 	// A
 	if (state->keys[SDL_SCANCODE_A] && !snake->movingRight) {
-		if (snake->snake_x[0] - MOVEMENT_SPEED > 0) {
+		if (snake->snake_x[0] - state->movement_speed > 0) {
 			oneDirection(snake, 0, 1, 0, 0); // left
 		}
 	}
 
 	// S
 	if (state->keys[SDL_SCANCODE_S] && !snake->movingUp) {
-		if (snake->snake_y[0] + MOVEMENT_SPEED < SCREEN_HEIGHT) {
+		if (snake->snake_y[0] + state->movement_speed < SCREEN_HEIGHT) {
 			oneDirection(snake, 0, 0, 1, 0); // down
 		}
 	}
 
 	// D
 	if (state->keys[SDL_SCANCODE_D] && !snake->movingLeft) {
-		if (snake->snake_x[0] + MOVEMENT_SPEED < SCREEN_WIDTH) {
+		if (snake->snake_x[0] + state->movement_speed < SCREEN_WIDTH) {
 			oneDirection(snake, 0, 0, 0, 1); // right
 		}
 	}
 }
 
-void moveSnake(Snake* snake) {
+void moveSnake(Snake* snake, GameState* state) {
 	if (snake->movingUp) {
 		snake->activeImage = snake->headUp;
-		snake->snake_y[0] -= MOVEMENT_SPEED;
+		snake->snake_y[0] -= state->movement_speed;
 	}
 	else if (snake->movingLeft) {
 		snake->activeImage = snake->headLeft;
-		snake->snake_x[0] -= MOVEMENT_SPEED;
+		snake->snake_x[0] -= state->movement_speed;
 	}
 	else if (snake->movingDown) {
 		snake->activeImage = snake->headDown;
-		snake->snake_y[0] += MOVEMENT_SPEED;
+		snake->snake_y[0] += state->movement_speed;
 	}
 	else if (snake->movingRight) {
 		snake->activeImage = snake->headRight;
-		snake->snake_x[0] += MOVEMENT_SPEED;
+		snake->snake_x[0] += state->movement_speed;
 	}
 }
 
 void drawSnake(Snake* snake, SDL_Surface* screen) {
-	for (int i = 1; i < INITIAL_SNAKE_LENGTH; i++) {
+	for (int i = 1; i < snake->currentSnakeLength; i++) {
 		DrawSurface(screen, snake->body, snake->snake_x[i], snake->snake_y[i]);
 	}
 	DrawSurface(screen, snake->activeImage, snake->snake_x[0], snake->snake_y[0]);
@@ -496,9 +580,9 @@ void setSnake(Snake* snake) {
 }
 
 void chaseHead(Snake* snake, GameState* state) {
-	if (state->timeTracker > CHASE_DELAY) { //either go for chase_delay define or use the fps here im not sure test it on other computers 
+	if (state->timeTracker > state->chase_delay) { //either go for chase_delay define or use the fps here im not sure test it on other computers 
 		//(state->fps+ 200)/10000
-		for (int i = INITIAL_SNAKE_LENGTH - 1; i > 0; i--) {
+		for (int i = snake->currentSnakeLength - 1; i > 0; i--) {
 			snake->snake_x[i] = snake->snake_x[i - 1];
 			snake->snake_y[i] = snake->snake_y[i - 1];
 		}
@@ -531,11 +615,48 @@ void selfHit(Snake* snake, GameState* state) {
 	double x, y;
 	getPhantomPoints(snake, &x, &y);
 
-	for (int i = 1; i < INITIAL_SNAKE_LENGTH; i++) {
+	for (int i = 1; i < snake->currentSnakeLength; i++) {
 		if (x <= snake->snake_x[i]+16 && x >= snake->snake_x[i] && y >= snake->snake_y[i] && y <= snake->snake_y[i]+16) {
 			state->collision = true;
 		}
 	}	
+}
+
+void randCoords(double* x, double* y) {
+	*x = (rand() % SCREEN_WIDTH) + 1;
+	*y = (rand() % SCREEN_HEIGHT) + 70;
+}
+
+void spawnBlueDot(SDL_Surface* screen, GameState* state) {
+	if (state->dotSpawned == false) {
+		randCoords(&state->blue_dot_x, &state->blue_dot_y);
+	}
+	DrawSurface(screen, state->blue_dot, state->blue_dot_x, state->blue_dot_y);
+	state->dotSpawned = true;
+}
+
+void dotReached(Snake* snake, GameState* state) {
+	double x, y;
+	getPhantomPoints(snake, &x, &y);
+	if (x <= state->blue_dot_x + SENSITIVITY + 16 && x >= state->blue_dot_x - SENSITIVITY && y >= state->blue_dot_y - SENSITIVITY && y <= state->blue_dot_y + SENSITIVITY + 16) {
+		state->dotSpawned = false;
+		//state->dotReached = true;
+		snake->currentSnakeLength += UNIT;
+	}
+}
+
+void speedUp(GameState* state) {
+	if (state->speedUpTimer > SPEED_UP_INTERVAL) {
+		state->speed_const *= SPEED_UP_MULTIPLIER;
+		state->speedUpTimer -= SPEED_UP_INTERVAL;
+	}
+}
+
+void redDotBonus(GameState* state) {
+	if ((int)state->redBonusTimer % state->red_interval == 0 && state->redBonusTimer > 1) {
+		state->showProgressBar = true;
+		state->redBonusTimer = 0;
+	}
 }
 
 #ifdef __cplusplus
@@ -565,32 +686,64 @@ int main(int argc, char** argv) {
 	state.quit = 0;
 	state.collision = false;
 	state.worldTime = 0;
+	state.speedUpTimer = 0;
+	state.redBonusTimer = 0;
+	state.progressTimer = 0;
 	distance = 0;
 	etiSpeed = 1;
-
+	state.dotSpawned = false; 
+	state.dotReached = true; 
+	state.speed_const = SPEED_CONST;
+	state.showProgressBar = false;
+	state.red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
 
 	setSnake(&snake);
+	srand(time(NULL));
+
+	snake.currentSnakeLength = INITIAL_SNAKE_LENGTH;
 
 	while (!state.quit) {
 		if (!state.collision) {
+			
 			t2 = SDL_GetTicks();
 			state.delta = (t2 - t1) * 0.001;
 			t1 = t2;
+
+			state.movement_speed = state.speed_const * state.delta;
+			state.chase_delay = 15.0/state.speed_const;
+
+			
 
 			state.worldTime += state.delta;
 
 			distance += etiSpeed * state.delta;
 			state.timeTracker += state.delta;
+			state.speedUpTimer += state.delta;
+			if (state.redBonusTimer == 0) {
+				state.red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
+			}
+			if (state.showProgressBar == false) {
+				state.redBonusTimer += state.delta;
+			}
+			if (state.showProgressBar == true) {
+				state.progressTimer += state.delta;
+			}
+
+
 
 			printAllVisuals(screen, &state, &colors, &snake);
+			spawnBlueDot(screen, &state);
+			dotReached(&snake, &state);
 			keystrokeReact(&state, &snake);
 			snakeMovement(&state, &snake);
-			moveSnake(&snake);
-			wallInteraction(&snake);
+			moveSnake(&snake, &state);
+			wallInteraction(&snake, &state);
 			drawSnake(&snake, screen);
 			chaseHead(&snake, &state);
-			updateRenderer(scrtex, screen, renderer);
 			selfHit(&snake, &state);
+			speedUp(&state);
+			redDotBonus(&state);
+			updateRenderer(scrtex, screen, renderer);
 			state.frames++;
 		}
 		else {

@@ -1,14 +1,27 @@
 ﻿  main.cpp
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(281,35): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(284,35): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(290,35): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(280,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(283,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(289,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(479,71): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(479,52): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(481,77): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(481,58): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(210,1): warning C4715: 'loadAllImages': not all control paths return a value
-C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(261,1): warning C4715: 'initializeSDL': not all control paths return a value
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(306,36): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(310,36): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(314,36): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(318,36): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(322,36): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(330,36): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(305,3): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(309,3): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(313,3): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(317,3): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(321,3): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(329,3): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(353,35): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(362,35): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(352,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(361,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(563,71): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(563,52): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(565,77): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(565,58): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(634,63): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(634,44): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(701,12): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(301,1): warning C4715: 'initializeSDL': not all control paths return a value
+C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\main.cpp(250,1): warning C4715: 'loadAllImages': not all control paths return a value
   szablon2vs19.vcxproj -> C:\Users\Stan Swirydczuk\Desktop\STUDIA\snake\x64\Debug\szablon2vs19.exe
