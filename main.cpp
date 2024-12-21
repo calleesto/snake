@@ -19,7 +19,7 @@ extern "C" {
 #define MAX_SNAKE_LENGTH		100
 #define SNAKE_BODY_GAP			4
 #define SELF_HIT_SENSITIVITY	10
-#define CHASE_DELAY				0.185
+#define CHASE_DELAY				0.4
 
 typedef struct GameState {
 	SDL_Event event;
@@ -427,28 +427,28 @@ void wallInteraction(Snake* snake) {
 
 void snakeMovement(GameState* state, Snake* snake) {
 	// W
-	if (state->keys[SDL_SCANCODE_W]) {
+	if (state->keys[SDL_SCANCODE_W] && !snake->movingDown) {
 		if (snake->snake_y[0] - MOVEMENT_SPEED > 0) {
 			oneDirection(snake, 1, 0, 0, 0); // up
 		}
 	}
 
 	// A
-	if (state->keys[SDL_SCANCODE_A]) {
+	if (state->keys[SDL_SCANCODE_A] && !snake->movingRight) {
 		if (snake->snake_x[0] - MOVEMENT_SPEED > 0) {
 			oneDirection(snake, 0, 1, 0, 0); // left
 		}
 	}
 
 	// S
-	if (state->keys[SDL_SCANCODE_S]) {
+	if (state->keys[SDL_SCANCODE_S] && !snake->movingUp) {
 		if (snake->snake_y[0] + MOVEMENT_SPEED < SCREEN_HEIGHT) {
 			oneDirection(snake, 0, 0, 1, 0); // down
 		}
 	}
 
 	// D
-	if (state->keys[SDL_SCANCODE_D]) {
+	if (state->keys[SDL_SCANCODE_D] && !snake->movingLeft) {
 		if (snake->snake_x[0] + MOVEMENT_SPEED < SCREEN_WIDTH) {
 			oneDirection(snake, 0, 0, 0, 1); // right
 		}
@@ -496,7 +496,8 @@ void setSnake(Snake* snake) {
 }
 
 void chaseHead(Snake* snake, GameState* state) {
-	if (state->timeTracker > CHASE_DELAY) {
+	if (state->timeTracker > CHASE_DELAY) { //either go for chase_delay define or use the fps here im not sure test it on other computers 
+		//(state->fps+ 200)/10000
 		for (int i = INITIAL_SNAKE_LENGTH - 1; i > 0; i--) {
 			snake->snake_x[i] = snake->snake_x[i - 1];
 			snake->snake_y[i] = snake->snake_y[i - 1];
@@ -506,6 +507,8 @@ void chaseHead(Snake* snake, GameState* state) {
 }
 
 void getPhantomPoints(Snake* snake, double *pointX, double *pointY) {
+	//the bmps are drawn from the top left hand corner and are 16pixels in width as well as in hight
+	//when getting the phantom points i increment or decrement by 8 n-times to get the phantom point i want depending on the direction of the snake
 	if (snake->movingUp) {
 		*pointX = snake->snake_x[0] + 8;
 		*pointY = snake->snake_y[0] - 8;
