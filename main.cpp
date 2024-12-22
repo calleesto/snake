@@ -23,13 +23,14 @@ extern "C" {
 
 #define SPEED_CONST				150
 #define SPEED_UP_MULTIPLIER		1.1
+#define SLOW_DOWN_MULTIPLIER	0.8
 #define SPEED_UP_INTERVAL		5
 
-#define SENSITIVITY				10
+#define SENSITIVITY				20
 #define UNIT					5
 
-#define RED_UPPER_LIMIT			5
-#define RED_BOTTOM_LIMIT		1
+#define RED_UPPER_LIMIT			8
+#define RED_BOTTOM_LIMIT		5
 
 
 //TODO
@@ -40,6 +41,7 @@ typedef struct GameState {
 	SDL_Surface* charset;
 	SDL_Surface* eti;
 	SDL_Surface* blue_dot;
+	SDL_Surface* red_dot;
 	int quit;
 	double worldTime;
 	bool keys[SDL_NUM_SCANCODES] = { false };
@@ -54,13 +56,20 @@ typedef struct GameState {
 	double chase_delay;
 	int frames;
 	bool collision;
-	bool dotSpawned; 
+	bool blueDotSpawned; 
+	bool redDotSpawned;
 	double blue_dot_x;
 	double blue_dot_y;
-	bool dotReached;
+	double red_dot_x;
+	double red_dot_y;
+	bool blueDotReached;
+	bool redDotReached;
 	bool showProgressBar;
 	double speed_const;
+	bool no_red_cords;
 	int red_interval;
+	int points = 0;
+	int fiftyfifty;
 }state;
 
 typedef struct Snake {
@@ -247,6 +256,18 @@ int loadAllImages(SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* scree
 		SDL_Quit();
 		return 1;
 	};
+
+	state->red_dot = SDL_LoadBMP("./red_dot.bmp");
+	if (state->red_dot == NULL) {
+		printf("SDL_LoadBMP(red_dot.bmp) error: %s\n", SDL_GetError());
+		SDL_FreeSurface(state->charset);
+		SDL_FreeSurface(screen);
+		SDL_DestroyTexture(scrtex);
+		SDL_DestroyWindow(window);
+		SDL_DestroyRenderer(renderer);
+		SDL_Quit();
+		return 1;
+	};
 }
 
 int initializeSDL(GameState* state, Snake* snake, Colors* colors, SDL_Event* event, SDL_Surface** screen, SDL_Texture** scrtex, SDL_Window** window, SDL_Renderer** renderer) {
@@ -349,7 +370,7 @@ void printAllVisuals(SDL_Surface* screen, GameState* state, Colors* colors, Snak
 
 	DrawRectangle(screen, 3, 3, SCREEN_WIDTH - 6, 51, colors->black, colors->grey);
 
-	sprintf(colors->text, "RUNNING TIME = %.1lf s  %.0lf frames / s", state->worldTime, state->fps);
+	sprintf(colors->text, "Time: [%.1lf]s, [%.0lf] fps, IMPLEMENTED ELEMENTS: 1,2,3,4 ", state->worldTime, state->fps);
 	DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 10, colors->text, state->charset);
 
 	//sprintf(colors->text, "Esc - EXIT PROGRAM, n - NEW GAME");
@@ -358,7 +379,7 @@ void printAllVisuals(SDL_Surface* screen, GameState* state, Colors* colors, Snak
 	//sprintf(colors->text, "W - CLIMB LADDER, A - GO LEFT, S - DESCEND LADDER,  D - GO RIGHT");
 	//DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 42, colors->text, element->charset);
 
-	sprintf(colors->text, "IMPLEMENTED ELEMENTS: 1,2,3,4");
+	sprintf(colors->text, "Points: [%d], Speed: [%.0lf], Length: [%d]", state->points, state->speed_const, snake->currentSnakeLength);
 	DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 26, colors->text, state->charset);
 
 	if (state->showProgressBar == true) {
@@ -445,12 +466,16 @@ void keystrokeReact(GameState* state, Snake* snake) {
 				snake->snake_y[0] = SNAKE_SPAWN_Y;
 				oneDirection(snake, 1, 0, 0, 0);
 				snake->isAlive = 1;
-				state->dotSpawned = false;
+				state->blueDotSpawned = false;
+				state->redDotSpawned = false;
+				state->blueDotReached = true;
+				state->redDotReached = true;
 				snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
 				state->speed_const = SPEED_CONST;
 				state->speedUpTimer = 0;
 				state->redBonusTimer = 0;
 				state->progressTimer = 0;
+				state->no_red_cords = false;
 				state->showProgressBar = false;
 				state->red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
 				break;
@@ -628,20 +653,21 @@ void randCoords(double* x, double* y) {
 }
 
 void spawnBlueDot(SDL_Surface* screen, GameState* state) {
-	if (state->dotSpawned == false) {
+	if (state->blueDotSpawned == false) {
 		randCoords(&state->blue_dot_x, &state->blue_dot_y);
 	}
 	DrawSurface(screen, state->blue_dot, state->blue_dot_x, state->blue_dot_y);
-	state->dotSpawned = true;
+	state->blueDotSpawned = true;
 }
 
-void dotReached(Snake* snake, GameState* state) {
+void blueDotReached(Snake* snake, GameState* state) {
 	double x, y;
 	getPhantomPoints(snake, &x, &y);
 	if (x <= state->blue_dot_x + SENSITIVITY + 16 && x >= state->blue_dot_x - SENSITIVITY && y >= state->blue_dot_y - SENSITIVITY && y <= state->blue_dot_y + SENSITIVITY + 16) {
-		state->dotSpawned = false;
+		state->blueDotSpawned = false;
 		//state->dotReached = true;
 		snake->currentSnakeLength += UNIT;
+		state->points += 10;
 	}
 }
 
@@ -652,12 +678,54 @@ void speedUp(GameState* state) {
 	}
 }
 
-void redDotBonus(GameState* state) {
-	if ((int)state->redBonusTimer % state->red_interval == 0 && state->redBonusTimer > 1) {
-		state->showProgressBar = true;
+void spawnRedDot(SDL_Surface* screen, GameState* state) {
+	if (state->no_red_cords == true) {
+		randCoords(&state->red_dot_x, &state->red_dot_y);
+		state->no_red_cords = false;
+	}
+	
+	DrawSurface(screen, state->red_dot, state->red_dot_x, state->red_dot_y);
+	state->redDotSpawned = true;
+}
+
+void redDotReached(Snake* snake, GameState* state) {
+	double x, y;
+	getPhantomPoints(snake, &x, &y);
+	if (x <= state->red_dot_x + SENSITIVITY + 16 && x >= state->red_dot_x - SENSITIVITY && y >= state->red_dot_y - SENSITIVITY && y <= state->red_dot_y + SENSITIVITY + 16 && state->showProgressBar == true) {
+		state->redDotReached = true;
 		state->redBonusTimer = 0;
+		state->progressTimer = 0;
+		state->showProgressBar = false;
+		state->points += 10;
+		if (state->fiftyfifty == 1) {
+			snake->currentSnakeLength -= UNIT;
+		}
+		else if (state->fiftyfifty == 2) {
+			state->speed_const *= SLOW_DOWN_MULTIPLIER;
+		}
+		
 	}
 }
+
+void redDotBonus(SDL_Surface* screen, GameState* state) {
+	if ((int)state->redBonusTimer % state->red_interval == 0 && state->redBonusTimer > 1 && state->redDotReached == false) {
+		state->redDotSpawned = false;
+		state->showProgressBar = true;
+	}
+	if (state->showProgressBar == true) {
+		spawnRedDot(screen, state);
+	}
+	if (state->progressTimer == 0) {
+		state->no_red_cords = true;
+	}
+}
+
+void snakeLengthMin(Snake* snake) {
+	if (snake->currentSnakeLength < INITIAL_SNAKE_LENGTH) {
+		snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
+	}
+}
+
 
 #ifdef __cplusplus
 extern "C"
@@ -691,16 +759,20 @@ int main(int argc, char** argv) {
 	state.progressTimer = 0;
 	distance = 0;
 	etiSpeed = 1;
-	state.dotSpawned = false; 
-	state.dotReached = true; 
+	state.blueDotSpawned = false; 
+	state.redDotSpawned = false;
+	state.blueDotReached = true; 
+	state.redDotReached = false;
 	state.speed_const = SPEED_CONST;
 	state.showProgressBar = false;
+	state.no_red_cords = false;
 	state.red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
+	snake.currentSnakeLength = INITIAL_SNAKE_LENGTH;
 
 	setSnake(&snake);
 	srand(time(NULL));
 
-	snake.currentSnakeLength = INITIAL_SNAKE_LENGTH;
+	
 
 	while (!state.quit) {
 		if (!state.collision) {
@@ -712,7 +784,7 @@ int main(int argc, char** argv) {
 			state.movement_speed = state.speed_const * state.delta;
 			state.chase_delay = 15.0/state.speed_const;
 
-			
+			state.fiftyfifty = rand() % 2 + 1;
 
 			state.worldTime += state.delta;
 
@@ -720,6 +792,8 @@ int main(int argc, char** argv) {
 			state.timeTracker += state.delta;
 			state.speedUpTimer += state.delta;
 			if (state.redBonusTimer == 0) {
+				state.redDotReached = false;
+				state.showProgressBar = false;
 				state.red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
 			}
 			if (state.showProgressBar == false) {
@@ -732,8 +806,10 @@ int main(int argc, char** argv) {
 
 
 			printAllVisuals(screen, &state, &colors, &snake);
+			snakeLengthMin(&snake);
 			spawnBlueDot(screen, &state);
-			dotReached(&snake, &state);
+			blueDotReached(&snake, &state);
+			redDotReached(&snake, &state);
 			keystrokeReact(&state, &snake);
 			snakeMovement(&state, &snake);
 			moveSnake(&snake, &state);
@@ -742,7 +818,7 @@ int main(int argc, char** argv) {
 			chaseHead(&snake, &state);
 			selfHit(&snake, &state);
 			speedUp(&state);
-			redDotBonus(&state);
+			redDotBonus(screen, &state);
 			updateRenderer(scrtex, screen, renderer);
 			state.frames++;
 		}
