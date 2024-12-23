@@ -10,7 +10,6 @@ extern "C" {
 #include"./SDL2-2.0.10/include/SDL_main.h"
 }
 
-//screen resolution
 #define SCREEN_WIDTH			640
 #define SCREEN_HEIGHT			480
 #define SNAKE_SPAWN_X			300
@@ -39,8 +38,9 @@ extern "C" {
 #define BORDER_COLOR			grey
 
 
-//TODO
-//CHANGE ARRAY TO DYNAMIC
+//-------------------
+//------STRUCTS------
+//-------------------
 
 typedef struct GameState {
 	SDL_Event event;
@@ -79,8 +79,8 @@ typedef struct GameState {
 }state;
 
 typedef struct Snake {
-	double snake_x[MAX_SNAKE_LENGTH];
-	double snake_y[MAX_SNAKE_LENGTH];
+	double* snake_x;
+	double* snake_y;
 	bool isAlive;
 	bool movingUp;
 	bool movingLeft;
@@ -110,7 +110,65 @@ typedef struct Colors {
 	char text[128];
 }colors;
 
-//default sdl functions
+
+
+//-------------------
+//----DECLARATIONS---
+//-------------------
+
+// SDL Drawing Functions
+void DrawString(SDL_Surface* screen, int x, int y, const char* text, SDL_Surface* charset);
+void DrawSurface(SDL_Surface* screen, SDL_Surface* sprite, int x, int y);
+void DrawPixel(SDL_Surface* surface, int x, int y, Uint32 color);
+void DrawLine(SDL_Surface* screen, int x, int y, int l, int dx, int dy, Uint32 color);
+void DrawRectangle(SDL_Surface* screen, int x, int y, int l, int k, Uint32 outlineColor, Uint32 fillColor);
+
+// SDL Initialization Functions
+int loadAllImages(SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state, Snake* snake);
+int initializeSDL(GameState* state, Snake* snake, Colors* colors, SDL_Event* event, SDL_Surface** screen, SDL_Texture** scrtex, SDL_Window** window, SDL_Renderer** renderer);
+void updateRenderer(SDL_Texture* scrtex, SDL_Surface* screen, SDL_Renderer* renderer);
+void closingGame(SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state);
+
+// Game Printing Functions
+void printProgressBar(SDL_Surface* screen, GameState* state, Colors* colors);
+void printAllVisuals(SDL_Surface* screen, GameState* state, Colors* colors, Snake* snake);
+void drawSnake(Snake* snake, SDL_Surface* screen);
+void spawnBlueDot(SDL_Surface* screen, GameState* state);
+void spawnRedDot(SDL_Surface* screen, GameState* state);
+
+// Snake Movement and Control Functions
+void wallInteraction(Snake* snake, GameState* state);
+void snakeMovement(GameState* state, Snake* snake);
+void moveSnake(Snake* snake, GameState* state);
+void chaseHead(Snake* snake, GameState* state);
+void snakeLengthMin(Snake* snake);
+void selfHit(Snake* snake, GameState* state);
+void getPhantomPoints(Snake* snake, double* pointX, double* pointY);
+void oneDirection(Snake* snake, int w, int a, int s, int d);
+void freeSnakeMemory(Snake* snake);
+void reallocSnake(Snake* snake, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state);
+
+// Event Handling Functions
+void randCoords(double* x, double* y);
+void blueDotReached(Snake* snake, GameState* state, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex);
+void redDotReached(Snake* snake, GameState* state, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex);
+void speedUp(GameState* state);
+void redDotBonus(SDL_Surface* screen, GameState* state);
+void keystrokeReact(GameState* state, Snake* snake, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex);
+
+// Main Game Functions
+void mainFunctions(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Renderer* renderer, GameState* state, Colors* colors, Snake* snake, SDL_Window* window);
+void timerChanges(GameState* state);
+void setVariables(GameState* state);
+void setSnake(Snake* snake, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state);
+int main(int argc, char** argv);
+
+
+
+//-------------------
+//---SDL-DRAWING-----
+//-------------------
+
 void DrawString(SDL_Surface* screen, int x, int y, const char* text, SDL_Surface* charset) {
 	int px, py, c;
 	SDL_Rect s, d;
@@ -164,6 +222,12 @@ void DrawRectangle(SDL_Surface* screen, int x, int y, int l, int k, Uint32 outli
 	for (i = y + 1; i < y + k - 1; i++)
 		DrawLine(screen, x + 1, i, l - 2, 1, 0, fillColor);
 };
+
+
+
+//-------------------
+//-----SDL-INIT------
+//-------------------
 
 int loadAllImages(SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state, Snake* snake) {
 	const char* filename = "->/gojo.bmp";
@@ -327,6 +391,27 @@ int initializeSDL(GameState* state, Snake* snake, Colors* colors, SDL_Event* eve
 	colors->grey = SDL_MapRGB((*screen)->format, 0x55, 0x55, 0x55);
 }
 
+void updateRenderer(SDL_Texture* scrtex, SDL_Surface* screen, SDL_Renderer* renderer) {
+	SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
+	SDL_RenderCopy(renderer, scrtex, NULL, NULL);
+	SDL_RenderPresent(renderer);
+}
+
+void closingGame(SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state) {
+	SDL_FreeSurface(state->charset);
+	SDL_FreeSurface(screen);
+	SDL_DestroyTexture(scrtex);
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+}
+
+
+
+//-------------------
+//--GAME-PRINTING----
+//-------------------
+
 void printProgressBar(SDL_Surface* screen, GameState* state, Colors* colors) {
 	if (state->progressTimer > 0 && state->progressTimer < 1) {
 		sprintf(colors->text, "[|||            ]");
@@ -396,98 +481,38 @@ void printAllVisuals(SDL_Surface* screen, GameState* state, Colors* colors, Snak
 	//DrawString(screen, screen->w / 2 - strlen(colors->text) * 8 / 2, 74, colors->text, state->charset);
 }
 
-void updateRenderer(SDL_Texture* scrtex, SDL_Surface* screen, SDL_Renderer* renderer) {
-	SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-	SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-	SDL_RenderPresent(renderer);
+void drawSnake(Snake* snake, SDL_Surface* screen)
+
+{
+	for (int i = 1; i < snake->currentSnakeLength; i++) {
+		DrawSurface(screen, snake->body, snake->snake_x[i], snake->snake_y[i]);
+	}
+	DrawSurface(screen, snake->activeImage, snake->snake_x[0], snake->snake_y[0]);
 }
 
-void closingGame(SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state) {
-	SDL_FreeSurface(state->charset);
-	SDL_FreeSurface(screen);
-	SDL_DestroyTexture(scrtex);
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+void spawnBlueDot(SDL_Surface* screen, GameState* state) {
+	if (state->blueDotSpawned == false) {
+		randCoords(&state->blue_dot_x, &state->blue_dot_y);
+	}
+	DrawSurface(screen, state->blue_dot, state->blue_dot_x, state->blue_dot_y);
+	state->blueDotSpawned = true;
 }
 
-void oneDirection(Snake* snake, int w, int a, int s, int d) {
-	if (w) {
-		snake->movingUp = true;
-		snake->movingLeft = false;
-		snake->movingDown = false;
-		snake->movingRight = false;
+void spawnRedDot(SDL_Surface* screen, GameState* state) {
+	if (state->no_red_cords == true) {
+		randCoords(&state->red_dot_x, &state->red_dot_y);
+		state->no_red_cords = false;
 	}
-	else if (a) {
-		snake->movingUp = false;
-		snake->movingLeft = true;
-		snake->movingDown = false;
-		snake->movingRight = false;
-	}
-	else if (s) {
-		snake->movingUp = false;
-		snake->movingLeft = false;
-		snake->movingDown = true;
-		snake->movingRight = false;
-	}
-	else if (d) {
-		snake->movingUp = false;
-		snake->movingLeft = false;
-		snake->movingDown = false;
-		snake->movingRight = true;
-	}
+
+	DrawSurface(screen, state->red_dot, state->red_dot_x, state->red_dot_y);
+	state->redDotSpawned = true;
 }
 
-void keystrokeReact(GameState* state, Snake* snake) {
-	while (SDL_PollEvent(&(state->event))) {
-		switch (state->event.type) {
-		case SDL_QUIT:
-			state->quit = 1;
-			break;
-		case SDL_KEYDOWN:
-			state->keys[state->event.key.keysym.scancode] = true;
-			switch (state->event.key.keysym.sym) {
-			case SDLK_ESCAPE:
-				state->quit = 1;
-				break;
-			case SDLK_q:
-				state->quit = 1;
-				break;
-			case SDLK_n:
-				//put all of snake off the map
-				for (int i = 1; i < MAX_SNAKE_LENGTH; i++) {
-					snake->snake_x[i] = 1000;
-					snake->snake_y[i] = 1000;
-				}
-				state->quit = false;
-				state->collision = false;
-				state->worldTime = 0;
-				snake->snake_x[0] = SNAKE_SPAWN_X;
-				snake->snake_y[0] = SNAKE_SPAWN_Y;
-				oneDirection(snake, 1, 0, 0, 0);
-				snake->isAlive = 1;
-				state->blueDotSpawned = false;
-				state->redDotSpawned = false;
-				state->blueDotReached = true;
-				state->redDotReached = true;
-				snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
-				state->speed_const = SPEED_CONST;
-				state->speedUpTimer = 0;
-				state->redBonusTimer = 0;
-				state->progressTimer = 0;
-				state->no_red_cords = false;
-				state->showProgressBar = false;
-				state->red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
-				state->points = 0;
-				break;
-			}
-			break;
-		case SDL_KEYUP:
-			state->keys[state->event.key.keysym.scancode] = false;
-			break;
-		}
-	}
-}
+
+
+//-------------------
+//------SNAKE--------
+//-------------------
 
 void wallInteraction(Snake* snake, GameState* state) {
 	//upper wall interaction
@@ -515,7 +540,7 @@ void wallInteraction(Snake* snake, GameState* state) {
 	if (snake->movingDown && snake->snake_y[0] + state->movement_speed >= SCREEN_HEIGHT) {
 		if (snake->snake_x[0] - state->movement_speed > 0) {
 			oneDirection(snake, 0, 1, 0, 0); // left
-			
+
 		}
 		else {
 			oneDirection(snake, 0, 0, 0, 1); // right
@@ -584,28 +609,6 @@ void moveSnake(Snake* snake, GameState* state) {
 	}
 }
 
-void drawSnake(Snake* snake, SDL_Surface* screen) {
-	for (int i = 1; i < snake->currentSnakeLength; i++) {
-		DrawSurface(screen, snake->body, snake->snake_x[i], snake->snake_y[i]);
-	}
-	DrawSurface(screen, snake->activeImage, snake->snake_x[0], snake->snake_y[0]);
-}
-
-void setSnake(Snake* snake) {
-	snake->isAlive = true;
-	snake->movingUp = true;
-	snake->movingLeft = false;
-	snake->movingDown = false;
-	snake->movingRight = false;
-	snake->snake_x[0] = SNAKE_SPAWN_X;
-	snake->snake_y[0] = SNAKE_SPAWN_Y;
-	snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
-
-	for (int i = 1; i < INITIAL_SNAKE_LENGTH; i++) {
-		snake->snake_x[i] = snake->snake_x[0];
-	}
-}
-
 void chaseHead(Snake* snake, GameState* state) {
 	if (state->timeTracker > state->chase_delay) {
 		for (int i = snake->currentSnakeLength - 1; i > 0; i--) {
@@ -613,6 +616,23 @@ void chaseHead(Snake* snake, GameState* state) {
 			snake->snake_y[i] = snake->snake_y[i - 1];
 		}
 		state->timeTracker = 0.0;
+	}
+}
+
+void snakeLengthMin(Snake* snake) {
+	if (snake->currentSnakeLength < INITIAL_SNAKE_LENGTH) {
+		snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
+	}
+}
+
+void selfHit(Snake* snake, GameState* state) {
+	double x, y;
+	getPhantomPoints(snake, &x, &y);
+
+	for (int i = 1; i < snake->currentSnakeLength; i++) {
+		if (x <= snake->snake_x[i] + 16 && x >= snake->snake_x[i] && y >= snake->snake_y[i] && y <= snake->snake_y[i] + 16) {
+			state->collision = true;
+		}
 	}
 }
 
@@ -637,67 +657,92 @@ void getPhantomPoints(Snake* snake, double *pointX, double *pointY) {
 	}
 }
 
-void selfHit(Snake* snake, GameState* state) {
-	double x, y;
-	getPhantomPoints(snake, &x, &y);
-
-	for (int i = 1; i < snake->currentSnakeLength; i++) {
-		if (x <= snake->snake_x[i]+16 && x >= snake->snake_x[i] && y >= snake->snake_y[i] && y <= snake->snake_y[i]+16) {
-			state->collision = true;
-		}
-	}	
+void oneDirection(Snake* snake, int w, int a, int s, int d) {
+	if (w) {
+		snake->movingUp = true;
+		snake->movingLeft = false;
+		snake->movingDown = false;
+		snake->movingRight = false;
+	}
+	else if (a) {
+		snake->movingUp = false;
+		snake->movingLeft = true;
+		snake->movingDown = false;
+		snake->movingRight = false;
+	}
+	else if (s) {
+		snake->movingUp = false;
+		snake->movingLeft = false;
+		snake->movingDown = true;
+		snake->movingRight = false;
+	}
+	else if (d) {
+		snake->movingUp = false;
+		snake->movingLeft = false;
+		snake->movingDown = false;
+		snake->movingRight = true;
+	}
 }
+
+void freeSnakeMemory(Snake* snake) {
+	if (snake->snake_x != NULL) {
+		free(snake->snake_x);
+		snake->snake_x = NULL;
+	}
+	if (snake->snake_y != NULL) {
+		free(snake->snake_y);
+		snake->snake_y = NULL;
+	}
+}
+
+void reallocSnake(Snake* snake, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state) {
+	double* new_x = (double*)realloc(snake->snake_x, snake->currentSnakeLength * sizeof(double));
+	if (new_x == NULL) {
+		printf("Failed to reallocate memory for snake_x\n");
+		freeSnakeMemory(snake);
+		closingGame(window, renderer, screen, scrtex, state);
+		exit(1);
+	}
+	snake->snake_x = new_x;
+
+	double* new_y = (double*)realloc(snake->snake_y, snake->currentSnakeLength * sizeof(double));
+	if (new_y == NULL) {
+		printf("Failed to reallocate memory for snake_y\n");
+		freeSnakeMemory(snake);
+		closingGame(window, renderer, screen, scrtex, state);
+		exit(1);
+	}
+	snake->snake_y = new_y;
+}
+
+
+
+//-------------------
+//------EVENTS-------
+//-------------------
 
 void randCoords(double* x, double* y) {
 	*x = (rand() % (SCREEN_WIDTH - 20)) + 20;
-	*y = (rand() % (SCREEN_HEIGHT- 70)) + 70;
+	*y = (rand() % (SCREEN_HEIGHT - 70)) + 70;
 }
 
-void spawnBlueDot(SDL_Surface* screen, GameState* state) {
-	if (state->blueDotSpawned == false) {
-		randCoords(&state->blue_dot_x, &state->blue_dot_y);
-	}
-	DrawSurface(screen, state->blue_dot, state->blue_dot_x, state->blue_dot_y);
-	state->blueDotSpawned = true;
-}
-
-void blueDotReached(Snake* snake, GameState* state) {
+void blueDotReached(Snake* snake, GameState* state, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex) {
 	double x, y;
 	getPhantomPoints(snake, &x, &y);
 	if (x <= state->blue_dot_x + SENSITIVITY + 16 && x >= state->blue_dot_x - SENSITIVITY && y >= state->blue_dot_y - SENSITIVITY && y <= state->blue_dot_y + SENSITIVITY + 16) {
 		state->blueDotSpawned = false;
 		state->blueDotReached = true;
-		for (int i = 0; i < UNIT; i++) {
+		/*for (int i = 0; i < UNIT; i++) {
 			snake->snake_x[snake->currentSnakeLength + i] = 1000;
 			snake->snake_y[snake->currentSnakeLength + i] = 1000;
-		}
+		}*/
 		snake->currentSnakeLength += UNIT;
 		state->points += BLUE_POINTS;
+		reallocSnake(snake, window, renderer, screen, scrtex, state);
 	}
 }
 
-void speedUp(GameState* state) {
-	if (state->speedUpTimer > SPEED_UP_INTERVAL) {
-		state->speed_const *= SPEED_UP_MULTIPLIER;
-		state->speedUpTimer -= SPEED_UP_INTERVAL;
-	}
-}
-
-
-
-
-
-void spawnRedDot(SDL_Surface* screen, GameState* state) {
-	if (state->no_red_cords == true) {
-		randCoords(&state->red_dot_x, &state->red_dot_y);
-		state->no_red_cords = false;
-	}
-	
-	DrawSurface(screen, state->red_dot, state->red_dot_x, state->red_dot_y);
-	state->redDotSpawned = true;
-}
-
-void redDotReached(Snake* snake, GameState* state) {
+void redDotReached(Snake* snake, GameState* state, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex) {
 	double x, y;
 	getPhantomPoints(snake, &x, &y);
 	if (x <= state->red_dot_x + SENSITIVITY + 16 && x >= state->red_dot_x - SENSITIVITY && y >= state->red_dot_y - SENSITIVITY && y <= state->red_dot_y + SENSITIVITY + 16 && state->showProgressBar == true) {
@@ -712,13 +757,21 @@ void redDotReached(Snake* snake, GameState* state) {
 				snake->snake_y[snake->currentSnakeLength - i] = 1000;
 			}
 			snake->currentSnakeLength -= UNIT;
+			reallocSnake(snake, window, renderer, screen, scrtex, state);
 		}
 		else if (state->fiftyfifty == 2) {
 			state->speed_const *= SLOW_DOWN_MULTIPLIER;
 			state->movement_speed = state->speed_const * state->delta;
 			state->chase_delay = 15.0 / state->speed_const;
 		}
-		
+
+	}
+}
+
+void speedUp(GameState* state) {
+	if (state->speedUpTimer > SPEED_UP_INTERVAL) {
+		state->speed_const *= SPEED_UP_MULTIPLIER;
+		state->speedUpTimer -= SPEED_UP_INTERVAL;
 	}
 }
 
@@ -735,19 +788,75 @@ void redDotBonus(SDL_Surface* screen, GameState* state) {
 	}
 }
 
-void snakeLengthMin(Snake* snake) {
-	if (snake->currentSnakeLength < INITIAL_SNAKE_LENGTH) {
-		snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
+void keystrokeReact(GameState* state, Snake* snake, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex) {
+	while (SDL_PollEvent(&(state->event))) {
+		switch (state->event.type) {
+		case SDL_QUIT:
+			free(snake->snake_x);
+			free(snake->snake_y);
+			snake->snake_x = NULL;
+			snake->snake_y = NULL;
+			state->quit = 1;
+			break;
+		case SDL_KEYDOWN:
+			state->keys[state->event.key.keysym.scancode] = true;
+			switch (state->event.key.keysym.sym) {
+			case SDLK_ESCAPE:
+				state->quit = 1;
+				break;
+			case SDLK_q:
+				state->quit = 1;
+				break;
+			case SDLK_n:
+				//put all of snake off the map
+				for (int i = 1; i < snake->currentSnakeLength; i++) {
+					snake->snake_x[i] = 1000;
+					snake->snake_y[i] = 1000;
+				}
+				snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
+				reallocSnake(snake, window, renderer, screen, scrtex, state);
+				state->quit = false;
+				state->collision = false;
+				state->worldTime = 0;
+				snake->snake_x[0] = SNAKE_SPAWN_X;
+				snake->snake_y[0] = SNAKE_SPAWN_Y;
+				oneDirection(snake, 1, 0, 0, 0);
+				snake->isAlive = 1;
+				state->blueDotSpawned = false;
+				state->redDotSpawned = false;
+				state->blueDotReached = true;
+				state->redDotReached = true;
+				state->speed_const = SPEED_CONST;
+				state->speedUpTimer = 0;
+				state->redBonusTimer = 0;
+				state->progressTimer = 0;
+				state->no_red_cords = false;
+				state->showProgressBar = false;
+				state->red_interval = (rand() % RED_UPPER_LIMIT) + RED_BOTTOM_LIMIT;
+				state->points = 0;
+				break;
+			}
+			break;
+		case SDL_KEYUP:
+			state->keys[state->event.key.keysym.scancode] = false;
+			break;
+		}
 	}
 }
 
-void mainFunctions(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Renderer* renderer, GameState* state, Colors* colors, Snake* snake) {
+
+
+//-------------------
+//-------MAIN--------
+//-------------------
+
+void mainFunctions(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Renderer* renderer, GameState* state, Colors* colors, Snake* snake, SDL_Window* window) {
 	printAllVisuals(screen, state, colors, snake);
 	snakeLengthMin(snake);
 	spawnBlueDot(screen, state);
-	blueDotReached(snake, state);
-	redDotReached(snake, state);
-	keystrokeReact(state, snake);
+	blueDotReached(snake, state, window, renderer, screen, scrtex);
+	redDotReached(snake, state, window, renderer, screen, scrtex);
+	keystrokeReact(state, snake, window, renderer, screen, scrtex);
 	snakeMovement(state, snake);
 	moveSnake(snake, state);
 	wallInteraction(snake, state);
@@ -782,7 +891,6 @@ void timerChanges(GameState* state) {
 	}
 }
 
-
 void setVariables(GameState* state) {
 	state->frames = 0;
 	state->fpsTimer = 0;
@@ -805,6 +913,40 @@ void setVariables(GameState* state) {
 	state->points = 0;
 }
 
+void setSnake(Snake* snake, SDL_Window* window, SDL_Renderer* renderer, SDL_Surface* screen, SDL_Texture* scrtex, GameState* state) {
+	snake->currentSnakeLength = INITIAL_SNAKE_LENGTH;
+
+	snake->snake_x = NULL;
+	snake->snake_y = NULL;
+
+	snake->snake_x = (double*)malloc(snake->currentSnakeLength * sizeof(double));
+	if (snake->snake_x == NULL) {
+		printf("Failed to allocate memory for snake_x\n");
+		freeSnakeMemory(snake);
+		closingGame(window, renderer, screen, scrtex, state);
+		exit(1);
+	}
+
+	snake->snake_y = (double*)malloc(snake->currentSnakeLength * sizeof(double));
+	if (snake->snake_y == NULL) {
+		printf("Failed to allocate memory for snake_y\n");
+		freeSnakeMemory(snake);
+		closingGame(window, renderer, screen, scrtex, state);
+		exit(1);
+	}
+	snake->isAlive = true;
+	snake->movingUp = true;
+	snake->movingLeft = false;
+	snake->movingDown = false;
+	snake->movingRight = false;
+	snake->snake_x[0] = SNAKE_SPAWN_X;
+	snake->snake_y[0] = SNAKE_SPAWN_Y;
+
+
+	for (int i = 1; i < INITIAL_SNAKE_LENGTH; i++) {
+		snake->snake_x[i] = snake->snake_x[0];
+	}
+}
 
 #ifdef __cplusplus
 extern "C"
@@ -827,7 +969,7 @@ int main(int argc, char** argv) {
 
 	setVariables(&state);
 
-	setSnake(&snake);
+	setSnake(&snake, window, renderer, screen, scrtex, &state);
 
 	srand(time(NULL));
 
@@ -844,15 +986,16 @@ int main(int argc, char** argv) {
 
 			timerChanges(&state);
 
-			mainFunctions(screen, scrtex, renderer, &state, &colors, &snake);
+			mainFunctions(screen, scrtex, renderer, &state, &colors, &snake, window);
 
 			state.frames++;
 		}
 		else {
-			keystrokeReact(&state, &snake);
+			keystrokeReact(&state, &snake, window, renderer, screen, scrtex);
 		}
 	}
-
+	free(snake.snake_x);
+	free(snake.snake_y);
 	closingGame(window, renderer, screen, scrtex, &state);
 	return 0;
 };
